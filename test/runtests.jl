@@ -165,6 +165,7 @@ ENV["CUDA_VISIBLE_DEVICES"] = join(map(pick->"GPU-$(pick.uuid)", picks), ",")
 # determine tests to skip
 const skip_tests = []
 has_cudnn() || push!(skip_tests, "cudnn")
+has_cusolvermg() || push!(skip_tests, "cusolvermg")
 has_nvml() || push!(skip_tests, "nvml")
 if !has_cutensor() || CUDA.version() < v"10.1" || first(picks).cap < v"7.0"
     append!(skip_tests, ["cutensor/base", "cutensor/contractions",
