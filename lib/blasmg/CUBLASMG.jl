@@ -6,7 +6,7 @@ using ..CUDA: CUstream
 
 using ..CUDA: libcublasmg, libcudalibmg, unsafe_free!, @retry_reclaim, @runtime_ccall, @checked, cudaDataType
 using ..CUDA.CUDALIBMG: CudaLibMGDescriptor, cudaLibMgGetLocalMatrixDimensions, cudaLibMgCreateDeviceGrid, cudaLibMgMatrixDesc_t, cudaLibMgGrid_t, CudaLibMGGrid, CUDALIBMG_GRID_MAPPING_COL_MAJOR, CUDALIBMG_GRID_MAPPING_ROW_MAJOR 
-using ..CUDA.CUBLAS: cublasStatus_t, cublasop, cublasOperation_t, CUBLAS_STATUS_ALLOC_FAILED, CUBLAS_STATUS_SUCCESS, CUBLASError
+using ..CUDA.CUBLAS: cublasStatus_t, cublasOperation_t, CUBLAS_STATUS_ALLOC_FAILED, CUBLAS_STATUS_SUCCESS, CUBLASError
 using LinearAlgebra
 
 using CEnum
@@ -46,11 +46,13 @@ function __init__()
     resize!(thread_handles, Threads.nthreads())
     fill!(thread_handles, nothing)
 
-    CUDA.atcontextswitch() do tid, ctx
+    CUDA.atdeviceswitch() do
+        tid = Threads.threadid()
         thread_handles[tid] = nothing
     end
 
-    CUDA.attaskswitch() do tid, task
+    CUDA.attaskswitch() do
+        tid = Threads.threadid()
         thread_handles[tid] = nothing
     end
 end

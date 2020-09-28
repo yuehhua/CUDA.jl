@@ -65,9 +65,9 @@ if CUDA.toolkit_version() >= v"11.0"
         end
     end # elty
 
-    # Float32 sometimes broken?
     @testset "mg_potrf and mg_potrs!" begin
-        @testset "element type $elty" for elty in [Float64, ComplexF32, ComplexF64]
+        #@testset "element type $elty" for elty in [Float32, Float64, ComplexF32, ComplexF64]
+        @testset "element type $elty" for elty in [Float64, ComplexF64]
             GC.enable(false)
             A = rand(elty, m, m)
             B = rand(elty, m, m)
@@ -76,10 +76,10 @@ if CUDA.toolkit_version() >= v"11.0"
             hB = copy(B)
             LinearAlgebra.LAPACK.potrf!('L', hA)
             LinearAlgebra.LAPACK.potrs!('L', hA, hB)
-            A = CUSOLVER.mg_potrf!('L',A, devs=devs)
-            B = CUSOLVER.mg_potrs!('L',A,B, devs=devs)
+            A = CUSOLVER.mg_potrf!('L', A, devs=devs)
+            B = CUSOLVER.mg_potrs!('L', A, B, devs=devs)
             # compare
-            tol    = real(elty) == Float32 ? 1e-1 : 1e-6
+            tol    = real(elty) == Float32 ? 1e-4 : 1e-6
             @test A ≈ hA 
             @test B ≈ hB rtol=tol
             GC.enable(true)

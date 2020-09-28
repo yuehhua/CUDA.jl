@@ -996,8 +996,6 @@ function mg_syevd!(jobz::Char, uplo::Char, A; devs=[0], dev_rows=1, dev_cols=len
     if uplo != 'L'
         throw(ArgumentError("only lower fill mode (uplo='L') supported"))
     end
-    cuuplo  = cublasfill(uplo)
-    cujobz  = cusolverjob(jobz)
     m, n    = size(A)
     N       = div(size(A, 2), length(devs)) # dimension of the sub-matrix
     descRef = Ref{cudaLibMgMatrixDesc_t}(C_NULL)
@@ -1006,11 +1004,11 @@ function mg_syevd!(jobz::Char, uplo::Char, A; devs=[0], dev_rows=1, dev_cols=len
     workspace     = Vector{CuArray}(undef, ndevs)
     workspace_ref = Vector{CUDA.CuPtr{Cvoid}}(undef, ndevs)
     W             = Vector{real(eltype(A))}(undef, n)
-    cusolverMgCreateMatrixDesc(descRef, m, n, m, N, cudaDataType(eltype(A)), gridRef[]) # only 1-D column is supported for now
+    cusolverMgCreateMatrixDesc(descRef, m, n, m, N, convert(cudaDataType, eltype(A)), gridRef[]) # only 1-D column is supported for now
     A_ref_arr     = allocateBuffers(dev_rows, dev_cols, ndevs, devs, descRef[], A)
     IA            = 1 # for now
     JA            = 1
-    cusolverMgSyevd_bufferSize(mg_handle(), cujobz, cuuplo, n, A_ref_arr, IA, JA, descRef[], W, cudaDataType(real(eltype(A))), cudaDataType(eltype(A)), lwork)
+    cusolverMgSyevd_bufferSize(mg_handle(), jobz, uplo, n, A_ref_arr, IA, JA, descRef[], W, convert(cudaDataType, real(eltype(A))), convert(cudaDataType, eltype(A)), lwork)
     for (di, dev) in enumerate(devs)
         device!(dev)
         workspace[di]     = CUDA.zeros(eltype(A), lwork[])
@@ -1019,7 +1017,7 @@ function mg_syevd!(jobz::Char, uplo::Char, A; devs=[0], dev_rows=1, dev_cols=len
     end
     device!(devs[1])
     info = Ref{Cint}(C_NULL)
-    cusolverMgSyevd(mg_handle(), cujobz, cuuplo, n, A_ref_arr, IA, JA, descRef[], W, cudaDataType(real(eltype(A))), cudaDataType(eltype(A)), workspace_ref, lwork[], info)
+    cusolverMgSyevd(mg_handle(), jobz, uplo, n, A_ref_arr, IA, JA, descRef[], W, convert(cudaDataType, real(eltype(A))), convert(cudaDataType, eltype(A)), workspace_ref, lwork[], info)
     if info[] < 0
         throw(ArgumentError("The $(info[])th parameter is wrong"))
     end
@@ -1038,18 +1036,17 @@ function mg_potrf!(uplo::Char, A; devs=[0], dev_rows=1, dev_cols=length(devs)) #
     if uplo != 'L'
         throw(ArgumentError("only lower fill mode (uplo='L') supported"))
     end
-    cuuplo  = cublasfill(uplo)
     m, n    = size(A)
     N       = div(size(A, 2), length(devs)) # dimension of the sub-matrix
     descRef = Ref{cudaLibMgMatrixDesc_t}(C_NULL)
     lwork         = Ref{Int64}(0)
     workspace     = Vector{CuArray}(undef, ndevs)
     workspace_ref = Vector{CUDA.CuPtr{Cvoid}}(undef, ndevs)
-    cusolverMgCreateMatrixDesc(descRef, m, n, m, N, cudaDataType(eltype(A)), gridRef[]) # only 1-D column is supported for now
+    cusolverMgCreateMatrixDesc(descRef, m, n, m, N, convert(cudaDataType, eltype(A)), gridRef[]) # only 1-D column is supported for now
     A_ref_arr     = allocateBuffers(dev_rows, dev_cols, ndevs, devs, descRef[], A)
     IA      = 1 # for now
     JA      = 1
-    cusolverMgPotrf_bufferSize(mg_handle(), cuuplo, n, A_ref_arr, IA, JA, descRef[], cudaDataType(eltype(A)), lwork)
+    cusolverMgPotrf_bufferSize(mg_handle(), uplo, n, A_ref_arr, IA, JA, descRef[], convert(cudaDataType, eltype(A)), lwork)
     for (di, dev) in enumerate(devs)
         device!(dev)
         workspace[di]     = CUDA.zeros(eltype(A), lwork[])
@@ -1057,7 +1054,7 @@ function mg_potrf!(uplo::Char, A; devs=[0], dev_rows=1, dev_cols=length(devs)) #
         synchronize()
     end
     info = Ref{Cint}(C_NULL)
-    cusolverMgPotrf(mg_handle(), cuuplo, n, A_ref_arr, IA, JA, descRef[], cudaDataType(eltype(A)), workspace_ref, lwork[], info)
+    cusolverMgPotrf(mg_handle(), uplo, n, A_ref_arr, IA, JA, descRef[], convert(cudaDataType, eltype(A)), workspace_ref, lwork[], info)
     if info[] < 0
         throw(ArgumentError("The $(info[])th parameter is wrong"))
     end
@@ -1072,18 +1069,17 @@ function mg_potri!(uplo::Char, A; devs=[0], dev_rows=1, dev_cols=length(devs)) #
     if uplo != 'L'
         throw(ArgumentError("only lower fill mode (uplo='L') supported"))
     end
-    cuuplo  = cublasfill(uplo)
     m, n    = size(A)
     N       = div(size(A, 2), ndevs) # dimension of the sub-matrix
     descRef = Ref{cudaLibMgMatrixDesc_t}(C_NULL)
     lwork         = Ref{Int64}(0)
     workspace     = Vector{CuArray}(undef, ndevs)
     workspace_ref = Vector{CUDA.CuPtr{Cvoid}}(undef, ndevs)
-    cusolverMgCreateMatrixDesc(descRef, m, n, m, N, cudaDataType(eltype(A)), gridRef[]) # only 1-D column is supported for now
+    cusolverMgCreateMatrixDesc(descRef, m, n, m, N, convert(cudaDataType, eltype(A)), gridRef[]) # only 1-D column is supported for now
     A_ref_arr     = allocateBuffers(dev_rows, dev_cols, ndevs, devs, descRef[], A)
     IA      = 1 # for now
     JA      = 1
-    cusolverMgPotri_bufferSize(mg_handle(), cuuplo, n, A_ref_arr, IA, JA, descRef[], cudaDataType(eltype(A)), lwork)
+    cusolverMgPotri_bufferSize(mg_handle(), uplo, n, A_ref_arr, IA, JA, descRef[], convert(cudaDataType, eltype(A)), lwork)
     for (di, dev) in enumerate(devs)
         device!(dev)
         workspace[di]     = CUDA.zeros(eltype(A), lwork[])
@@ -1091,7 +1087,7 @@ function mg_potri!(uplo::Char, A; devs=[0], dev_rows=1, dev_cols=length(devs)) #
         synchronize()
     end
     info = Ref{Cint}(C_NULL)
-    cusolverMgPotri(mg_handle(), cuuplo, n, A_ref_arr, IA, JA, descRef[], cudaDataType(eltype(A)), workspace_ref, lwork[], info)
+    cusolverMgPotri(mg_handle(), uplo, n, A_ref_arr, IA, JA, descRef[], convert(cudaDataType, eltype(A)), workspace_ref, lwork[], info)
     if info[] < 0
         throw(ArgumentError("The $(info[])th parameter is wrong"))
     end
@@ -1106,7 +1102,6 @@ function mg_potrs!(uplo::Char, A, B; devs=[0], dev_rows=1, dev_cols=length(devs)
     if uplo != 'L'
         throw(ArgumentError("only lower fill mode (uplo='L') supported"))
     end
-    cuuplo   = cublasfill(uplo)
     ma, na   = size(A)
     mb, nb   = size(A)
     NA       = div(size(A, 2), ndevs) # dimension of the sub-matrix
@@ -1116,15 +1111,15 @@ function mg_potrs!(uplo::Char, A, B; devs=[0], dev_rows=1, dev_cols=length(devs)
     lwork         = Ref{Int64}(0)
     workspace     = Vector{CuArray}(undef, ndevs)
     workspace_ref = Vector{CUDA.CuPtr{Cvoid}}(undef, ndevs)
-    cusolverMgCreateMatrixDesc(descRefA, ma, na, ma, NA, cudaDataType(eltype(A)), gridRef[]) # only 1-D column is supported for now
-    cusolverMgCreateMatrixDesc(descRefB, mb, nb, mb, NB, cudaDataType(eltype(B)), gridRef[]) # only 1-D column is supported for now
+    cusolverMgCreateMatrixDesc(descRefA, ma, na, ma, NA, convert(cudaDataType, eltype(A)), gridRef[]) # only 1-D column is supported for now
+    cusolverMgCreateMatrixDesc(descRefB, mb, nb, mb, NB, convert(cudaDataType, eltype(B)), gridRef[]) # only 1-D column is supported for now
     A_ref_arr     = allocateBuffers(dev_rows, dev_cols, ndevs, devs, descRefA[], A)
     B_ref_arr     = allocateBuffers(dev_rows, dev_cols, ndevs, devs, descRefB[], B)
     IA      = 1 # for now
     JA      = 1
     IB      = 1 # for now
     JB      = 1
-    cusolverMgPotrs_bufferSize(mg_handle(), cuuplo, na, nb, A_ref_arr, IA, JA, descRefA[], B_ref_arr, IB, JB, descRefB[], cudaDataType(eltype(A)), lwork)
+    cusolverMgPotrs_bufferSize(mg_handle(), uplo, na, nb, A_ref_arr, IA, JA, descRefA[], B_ref_arr, IB, JB, descRefB[], convert(cudaDataType, eltype(A)), lwork)
     for (di, dev) in enumerate(devs)
         device!(dev)
         workspace[di]     = CUDA.zeros(eltype(A), lwork[])
@@ -1132,7 +1127,7 @@ function mg_potrs!(uplo::Char, A, B; devs=[0], dev_rows=1, dev_cols=length(devs)
         synchronize()
     end
     info = Ref{Cint}(C_NULL)
-    cusolverMgPotrs(mg_handle(), cuuplo, na, nb, A_ref_arr, IA, JA, descRefA[], B_ref_arr, IB, JB, descRefB[], cudaDataType(eltype(A)), workspace_ref, lwork[], info)
+    cusolverMgPotrs(mg_handle(), uplo, na, nb, A_ref_arr, IA, JA, descRefA[], B_ref_arr, IB, JB, descRefB[], convert(cudaDataType, eltype(A)), workspace_ref, lwork[], info)
     if info[] < 0
         throw(ArgumentError("The $(info[])th parameter is wrong"))
     end
@@ -1152,7 +1147,7 @@ function mg_getrf!(A; devs=[0], dev_rows=1, dev_cols=length(devs)) # one host-si
     ipivs_ref     = Vector{CuPtr{Cint}}(undef, ndevs)  
     workspace     = Vector{CuArray}(undef, ndevs)
     workspace_ref = Vector{CUDA.CuPtr{Cvoid}}(undef, ndevs)
-    cusolverMgCreateMatrixDesc(descRef, m, n, m, N, cudaDataType(eltype(A)), gridRef[]) # only 1-D column is supported for now
+    cusolverMgCreateMatrixDesc(descRef, m, n, m, N, convert(cudaDataType, eltype(A)), gridRef[]) # only 1-D column is supported for now
     A_ref_arr     = allocateBuffers(dev_rows, dev_cols, ndevs, devs, descRef[], A)
     IA      = 1 # for now
     JA      = 1
@@ -1163,7 +1158,7 @@ function mg_getrf!(A; devs=[0], dev_rows=1, dev_cols=length(devs)) # one host-si
         synchronize()
     end
     device!(devs[1])
-    cusolverMgGetrf_bufferSize(mg_handle(), m, n, A_ref_arr, IA, JA, descRef[], ipivs_ref, cudaDataType(eltype(A)), lwork)
+    cusolverMgGetrf_bufferSize(mg_handle(), m, n, A_ref_arr, IA, JA, descRef[], ipivs_ref, convert(cudaDataType, eltype(A)), lwork)
     synchronize()
     for (di, dev) in enumerate(devs)
         device!(dev)
@@ -1173,7 +1168,7 @@ function mg_getrf!(A; devs=[0], dev_rows=1, dev_cols=length(devs)) # one host-si
     end
     device!(devs[1])
     info = Ref{Cint}(C_NULL)
-    cusolverMgGetrf(mg_handle(), m, n, A_ref_arr, IA, JA, descRef[], ipivs_ref, cudaDataType(eltype(A)), workspace_ref, lwork[], info)
+    cusolverMgGetrf(mg_handle(), m, n, A_ref_arr, IA, JA, descRef[], ipivs_ref, convert(cudaDataType, eltype(A)), workspace_ref, lwork[], info)
     synchronize()
     if info[] < 0
         throw(ArgumentError("The $(info[])th parameter is wrong"))
@@ -1201,8 +1196,8 @@ function mg_getrs!(trans, A, ipiv, B; devs=[0], dev_rows=1, dev_cols=length(devs
     ipivs_ref     = Vector{CuPtr{Cint}}(undef, ndevs)  
     workspace     = Vector{CuArray}(undef, ndevs)
     workspace_ref = Vector{CUDA.CuPtr{Cvoid}}(undef, ndevs)
-    cusolverMgCreateMatrixDesc(descRefA, ma, na, ma, NA, cudaDataType(eltype(A)), gridRef[]) # only 1-D column is supported for now
-    cusolverMgCreateMatrixDesc(descRefB, mb, nb, mb, NB, cudaDataType(eltype(B)), gridRef[]) # only 1-D column is supported for now
+    cusolverMgCreateMatrixDesc(descRefA, ma, na, ma, NA, convert(cudaDataType, eltype(A)), gridRef[]) # only 1-D column is supported for now
+    cusolverMgCreateMatrixDesc(descRefB, mb, nb, mb, NB, convert(cudaDataType, eltype(B)), gridRef[]) # only 1-D column is supported for now
     A_ref_arr     = allocateBuffers(dev_rows, dev_cols, ndevs, devs, descRefA[], A)
     B_ref_arr     = allocateBuffers(dev_rows, dev_cols, ndevs, devs, descRefB[], B)
     IA      = 1 # for now
@@ -1216,8 +1211,7 @@ function mg_getrs!(trans, A, ipiv, B; devs=[0], dev_rows=1, dev_cols=length(devs
         ipivs_ref[di] = Base.unsafe_convert(CuPtr{Cint}, ipivs[di])
         synchronize()
     end
-    cutrans = cublasop(trans)
-    cusolverMgGetrs_bufferSize(mg_handle(), cutrans, na, nb, A_ref_arr, IA, JA, descRefA[], ipivs_ref, B_ref_arr, IB, JB, descRefB[], cudaDataType(eltype(A)), lwork)
+    cusolverMgGetrs_bufferSize(mg_handle(), trans, na, nb, A_ref_arr, IA, JA, descRefA[], ipivs_ref, B_ref_arr, IB, JB, descRefB[], convert(cudaDataType, eltype(A)), lwork)
     for (di, dev) in enumerate(devs)
         device!(dev)
         workspace[di]     = CUDA.zeros(eltype(A), lwork[])
@@ -1225,7 +1219,7 @@ function mg_getrs!(trans, A, ipiv, B; devs=[0], dev_rows=1, dev_cols=length(devs
         synchronize()
     end
     info = Ref{Cint}(C_NULL)
-    cusolverMgGetrs(mg_handle(), cutrans, na, nb, A_ref_arr, IA, JA, descRefA[], ipivs_ref, B_ref_arr, IB, JB, descRefB[], cudaDataType(eltype(A)), workspace_ref, lwork[], info)
+    cusolverMgGetrs(mg_handle(), trans, na, nb, A_ref_arr, IA, JA, descRefA[], ipivs_ref, B_ref_arr, IB, JB, descRefB[], convert(cudaDataType, eltype(A)), workspace_ref, lwork[], info)
     if info[] < 0
         throw(ArgumentError("The $(info[])th parameter is wrong"))
     end
