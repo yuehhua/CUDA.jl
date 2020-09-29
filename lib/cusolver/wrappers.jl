@@ -1053,6 +1053,7 @@ function mg_potrf!(uplo::Char, A; devs=[0], dev_rows=1, dev_cols=length(devs)) #
         workspace_ref[di] = convert(CuPtr{Cvoid}, pointer(workspace[di]))
         synchronize()
     end
+    device!(devs[1])
     info = Ref{Cint}(C_NULL)
     cusolverMgPotrf(mg_handle(), uplo, n, A_ref_arr, IA, JA, descRef[], convert(cudaDataType, eltype(A)), workspace_ref, lwork[], info)
     if info[] < 0
@@ -1086,6 +1087,7 @@ function mg_potri!(uplo::Char, A; devs=[0], dev_rows=1, dev_cols=length(devs)) #
         workspace_ref[di] = convert(CuPtr{Cvoid}, pointer(workspace[di]))
         synchronize()
     end
+    device!(devs[1])
     info = Ref{Cint}(C_NULL)
     cusolverMgPotri(mg_handle(), uplo, n, A_ref_arr, IA, JA, descRef[], convert(cudaDataType, eltype(A)), workspace_ref, lwork[], info)
     if info[] < 0
@@ -1126,6 +1128,7 @@ function mg_potrs!(uplo::Char, A, B; devs=[0], dev_rows=1, dev_cols=length(devs)
         workspace_ref[di] = convert(CuPtr{Cvoid}, pointer(workspace[di]))
         synchronize()
     end
+    device!(devs[1])
     info = Ref{Cint}(C_NULL)
     cusolverMgPotrs(mg_handle(), uplo, na, nb, A_ref_arr, IA, JA, descRefA[], B_ref_arr, IB, JB, descRefB[], convert(cudaDataType, eltype(A)), workspace_ref, lwork[], info)
     if info[] < 0
@@ -1176,8 +1179,10 @@ function mg_getrf!(A; devs=[0], dev_rows=1, dev_cols=length(devs)) # one host-si
     A = returnBuffers(dev_rows, dev_cols, ndevs, devs, div(size(A, 1), dev_rows), div(size(A, 2), dev_cols), descRef[], A_ref_arr, A)
     ipiv = Vector{Int}(undef, n)
     for (di, dev) in enumerate(devs)
+        device!(dev)
         ipiv[((di-1)*N + 1):min((di*N), n)] = collect(ipivs[di])
     end
+    device!(devs[1])
     return A, ipiv
 end
 
@@ -1211,6 +1216,7 @@ function mg_getrs!(trans, A, ipiv, B; devs=[0], dev_rows=1, dev_cols=length(devs
         ipivs_ref[di] = Base.unsafe_convert(CuPtr{Cint}, ipivs[di])
         synchronize()
     end
+    device!(devs[1])
     cusolverMgGetrs_bufferSize(mg_handle(), trans, na, nb, A_ref_arr, IA, JA, descRefA[], ipivs_ref, B_ref_arr, IB, JB, descRefB[], convert(cudaDataType, eltype(A)), lwork)
     for (di, dev) in enumerate(devs)
         device!(dev)
@@ -1218,6 +1224,7 @@ function mg_getrs!(trans, A, ipiv, B; devs=[0], dev_rows=1, dev_cols=length(devs
         workspace_ref[di] = convert(CuPtr{Cvoid}, pointer(workspace[di]))
         synchronize()
     end
+    device!(devs[1])
     info = Ref{Cint}(C_NULL)
     cusolverMgGetrs(mg_handle(), trans, na, nb, A_ref_arr, IA, JA, descRefA[], ipivs_ref, B_ref_arr, IB, JB, descRefB[], convert(cudaDataType, eltype(A)), workspace_ref, lwork[], info)
     if info[] < 0

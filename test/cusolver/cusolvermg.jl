@@ -12,9 +12,9 @@ if length(devs) == 1
 end
 
 CUSOLVER.cusolverMgDeviceSelect(CUSOLVER.mg_handle(), length(devs), devs)
+GC.enable(false)
 @testset "mg_syevd!" begin
     @testset "element type $elty" for elty in [Float32, Float64, ComplexF32, ComplexF64]
-        GC.enable(false)
         A = rand(elty, m, m)
         A += A'
         hW = eigvals(Hermitian(A))
@@ -31,13 +31,12 @@ CUSOLVER.cusolverMgDeviceSelect(CUSOLVER.mg_handle(), length(devs), devs)
         # compare
         @test W ≈ hW 
 
-        GC.enable(true)
     end
 end # elty
+
 if CUDA.toolkit_version() >= v"11.0"
     @testset "mg_potrf!" begin
-        @testset "element type $elty" for elty in [Float64, ComplexF64]#[Float32, Float64, ComplexF32, ComplexF64]
-            GC.enable(false)
+        @testset "element type $elty" for elty in [Float32, Float64, ComplexF32, ComplexF64]
             A = rand(elty, m, m)
             A = A*A'
             hA = copy(A)
@@ -45,30 +44,27 @@ if CUDA.toolkit_version() >= v"11.0"
             LinearAlgebra.LAPACK.potrf!('L', hA)
             # compare
             @test A ≈ hA 
-            GC.enable(true)
         end
     end # elty
 
     @testset "mg_potrf and mg_potri!" begin
-        @testset "element type $elty" for elty in [Float32, Float64, ComplexF32, ComplexF64]
-            GC.enable(false)
+        #@testset "element type $elty" for elty in [Float32, Float64, ComplexF32, ComplexF64]
+        @testset "element type $elty" for elty in [Float64, ComplexF64]
             A = rand(elty, m, m)
             A = A*A'
-            #A = CUSOLVER.mg_potrf!('L',A, devs=devs)
-            LinearAlgebra.LAPACK.potrf!('L', A)
             hA = copy(A)
+            LinearAlgebra.LAPACK.potrf!('L', hA)
+            A = CUSOLVER.mg_potrf!('L',A, devs=devs)
             LinearAlgebra.LAPACK.potri!('L', hA)
             A = CUSOLVER.mg_potri!('L',A, devs=devs)
             # compare
             @test tril(A) ≈ tril(hA)
-            GC.enable(true)
         end
     end # elty
 
     @testset "mg_potrf and mg_potrs!" begin
         #@testset "element type $elty" for elty in [Float32, Float64, ComplexF32, ComplexF64]
         @testset "element type $elty" for elty in [Float64, ComplexF64]
-            GC.enable(false)
             A = rand(elty, m, m)
             B = rand(elty, m, m)
             A = A*A'
@@ -82,26 +78,23 @@ if CUDA.toolkit_version() >= v"11.0"
             tol    = real(elty) == Float32 ? 1e-4 : 1e-6
             @test A ≈ hA 
             @test B ≈ hB rtol=tol
-            GC.enable(true)
         end
     end # elty
 end
+
 if CUDA.toolkit_version() >= v"10.2"
-    @testset "getrf!" begin
+    @testset "mg_getrf!" begin
         @testset "element type $elty" for elty in [Float32, Float64, ComplexF32, ComplexF64]
-            GC.enable(false)
             A      = rand(elty,m,m)
             h_A    = copy(A)
             A,ipiv = CUSOLVER.mg_getrf!(A, devs=devs)
             alu    = LinearAlgebra.LU(A, convert(Vector{BlasInt},ipiv), zero(BlasInt))
             @test h_A ≈ Array(alu)
-            GC.enable(true)
         end
     end
 
-    @testset "getrs!" begin
+    @testset "mg_getrs!" begin
         @testset "element type $elty" for elty in [Float32, Float64, ComplexF32, ComplexF64]
-            GC.enable(false)
             A      = rand(elty,m,m)
             h_A    = copy(A)
             alu    = lu(A, Val(false))
@@ -110,7 +103,7 @@ if CUDA.toolkit_version() >= v"10.2"
             tol    = real(elty) == Float32 ? 1e-1 : 1e-6
             B      = CUSOLVER.mg_getrs!('N', alu.factors, alu.ipiv, B, devs=devs)
             @test B ≈ h_A\h_B  rtol=tol
-            GC.enable(true)
         end
     end
 end
+GC.enable(true)
