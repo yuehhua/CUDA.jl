@@ -51,7 +51,8 @@ function library_versioned_names(name::String, version::Union{Nothing,VersionNum
     elseif Sys.isunix()
         # most UNIX distributions ship versioned libraries (also see JuliaLang/julia#22828)
         if version isa VersionNumber
-            append!(names, ["lib$(name).$(Libdl.dlext).$(version.major).$(version.minor)",
+            append!(names, ["lib$(name).$(Libdl.dlext).$(version.major).$(version.minor).$(version.patch)",
+                            "lib$(name).$(Libdl.dlext).$(version.major).$(version.minor)",
                             "lib$(name).$(Libdl.dlext).$(version.major)"])
         elseif version isa String
             push!(names, "lib$(name).$(Libdl.dlext).$(version)")
