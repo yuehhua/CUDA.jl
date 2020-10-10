@@ -12,7 +12,6 @@ if length(devs) == 1
 end
 
 CUSOLVER.cusolverMgDeviceSelect(CUSOLVER.mg_handle(), length(devs), devs)
-GC.enable(false)
 @testset "mg_syevd!" begin
     @testset "element type $elty" for elty in [Float32, Float64, ComplexF32, ComplexF64]
         A = rand(elty, m, m)
@@ -106,4 +105,3 @@ if CUDA.toolkit_version() >= v"10.2"
         end
     end
 end
-GC.enable(true)
