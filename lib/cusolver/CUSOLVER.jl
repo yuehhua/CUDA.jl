@@ -28,7 +28,6 @@ include("linalg.jl")
 const thread_dense_handles  = Vector{Union{Nothing,cusolverDnHandle_t}}()
 const thread_sparse_handles = Vector{Union{Nothing,cusolverSpHandle_t}}()
 const thread_mg_handles  = Vector{Union{Nothing,cusolverMgHandle_t}}()
-const thread_mg_grids    = Vector{Union{Nothing,cudaLibMgGrid_t}}()
 
 function dense_handle()
     tid = Threads.threadid()
@@ -99,14 +98,11 @@ function __init__()
     resize!(thread_mg_handles, Threads.nthreads())
     fill!(thread_mg_handles, nothing)
 
-    resize!(thread_mg_grids, Threads.nthreads())
-    fill!(thread_mg_grids, nothing)
     CUDA.atdeviceswitch() do
         tid = Threads.threadid()
         thread_dense_handles[tid] = nothing
         thread_sparse_handles[tid] = nothing
         thread_mg_handles[tid] = nothing
-        thread_mg_grids[tid] = nothing
     end
 
     CUDA.attaskswitch() do
@@ -114,7 +110,6 @@ function __init__()
         thread_dense_handles[tid] = nothing
         thread_sparse_handles[tid] = nothing
         thread_mg_handles[tid] = nothing
-        thread_mg_grids[tid] = nothing
     end
 end
 
