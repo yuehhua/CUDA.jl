@@ -121,11 +121,11 @@ cuda:none:
 
 multigpu:
   extends:
-    - .julia:1.4
+    - .julia:1.5
     - .test
   tags:
     - nvidia
-    - cuda_10.2
+    - cuda_11.1
     - multigpu
   variables:
     JULIA_CUDA_USE_BINARYBUILDER: 'true'
