@@ -32,6 +32,7 @@ if do_help
 
                --help             Show this text.
                --list             List all available tests.
+               --thorough         Don't allow skipping tests that are not supported.
                --jobs=N           Launch `N` processes to perform tests (default: Threads.nthreads()).
                --gpus=N           Expose `N` GPUs to test processes (default: 1).
                --memcheck[=tool]  Run the tests under `cuda-memcheck`.
@@ -46,6 +47,7 @@ _, jobs = extract_flag!(cli_args, "--jobs", Threads.nthreads())
 _, gpus = extract_flag!(cli_args, "--gpus", 1)
 do_memcheck, memcheck_tool = extract_flag!(cli_args, "--memcheck", "memcheck")
 do_snoop, snoop_path = extract_flag!(cli_args, "--snoop")
+do_thorough, _ = extract_flag!(ARGS, "--thorough")
 
 include("setup.jl")     # make sure everything is precompiled
 
@@ -145,8 +147,7 @@ end
 cuda_support = CUDA.cuda_compat()
 filter!(x->x.cap in cuda_support.cap, candidates)
 ## only consider recent devices if we want testing to be thorough
-thorough = parse(Bool, get(ENV, "CI_THOROUGH", "false"))
-if thorough
+if do_thorough
     filter!(x->x.cap >= v"7.0", candidates)
 end
 isempty(candidates) && error("Could not find any suitable device for this configuration")
@@ -173,6 +174,8 @@ end
 if do_memcheck
     # CUFFT causes internal failures in cuda-memcheck
     push!(skip_tests, "cufft")
+    # CUTENSOR tests result in illegal memory accesses unregistering memory
+    push!(skip_tests, "cutensor")
     # there's also a bunch of `memcheck || ...` expressions in the tests themselves
 end
 if Sys.ARCH == :aarch64
@@ -184,7 +187,7 @@ for (i, test) in enumerate(skip_tests)
     skip_tests[i] = replace(test, '/'=>Base.Filesystem.path_separator)
 end
 filter!(in(tests), skip_tests) # only skip tests that we were going to run
-if haskey(ENV, "CI_THOROUGH")
+if do_thorough
     # we're not allowed to skip tests, so make sure we will mark them as such
     all_tests = copy(tests)
     if !isempty(skip_tests)

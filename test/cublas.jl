@@ -14,9 +14,6 @@ m = 20
 n = 35
 k = 13
 
-# FIXME: XT host tests don't pass cuda-memcheck, because they use raw CPU pointers.
-#        https://stackoverflow.com/questions/50116861/why-is-cudapointergetattributes-returning-invalid-argument-for-host-pointer
-
 # HACK: remove me when a new version of BFloat16s.jl is released
 Base.eps(::Type{BFloat16}) = Base.bitcast(BFloat16, 0x3c00)
 
@@ -508,7 +505,7 @@ end
             @test C2 ≈ h_C2
             @test_throws DimensionMismatch CUBLAS.xt_gemm!('N','N',alpha,d_A,d_Bbad,beta,d_C1)
         end
-        memcheck || @testset "xt_gemm! cpu" begin
+        @testset "xt_gemm! cpu" begin
             h_C1 = Array(d_C1)
             CUBLAS.xt_gemm!('N','N',alpha,Array(d_A),Array(d_B),beta,h_C1)
             mul!(d_C2, d_A, d_B)
@@ -530,7 +527,7 @@ end
             @test C ≈ h_C
             @test C ≈ h_C2
         end
-        memcheck || @testset "xt_gemm cpu" begin
+        @testset "xt_gemm cpu" begin
             d_C = CUBLAS.xt_gemm('N','N',Array(d_A),Array(d_B))
             C = A*B
             C2 = d_A * d_B
@@ -654,7 +651,7 @@ end
             h_C = Array(d_C)
             @test C ≈ h_C
         end
-        memcheck || @testset "xt_symm! cpu" begin
+        @testset "xt_symm! cpu" begin
             h_C = Array(d_C)
             CUBLAS.xt_symm!('L','U',alpha,Array(dsA),Array(d_B),beta,h_C)
             C = (alpha*sA)*B + beta*C
@@ -669,7 +666,7 @@ end
             h_C = Array(d_C)
             @test C ≈ h_C
         end
-        memcheck || @testset "xt_symm cpu" begin
+        @testset "xt_symm cpu" begin
             d_C = CUBLAS.xt_symm('L','U',Array(dsA),Array(d_B))
             C = sA*B
             # compare
@@ -703,7 +700,7 @@ end
             h_C = Array(dC)
             @test C ≈ h_C
         end
-        memcheck || @testset "xt_trmm! cpu" begin
+        @testset "xt_trmm! cpu" begin
             C = alpha*A*B
             h_C = Array(dC)
             CUBLAS.xt_trmm!('L','U','N','N',alpha,Array(dA),Array(dB),h_C)
@@ -716,7 +713,7 @@ end
             h_C = Array(d_C)
             @test C ≈ h_C
         end
-        memcheck || @testset "xt_trmm cpu" begin
+        @testset "xt_trmm cpu" begin
             C = alpha*A*B
             d_C = CUBLAS.xt_trmm('L','U','N','N',alpha,Array(dA),Array(dB))
             @test C ≈ d_C
@@ -737,7 +734,7 @@ end
             h_C = Array(dC)
             @test C ≈ h_C
         end
-        memcheck || @testset "xt_trsm! cpu" begin
+        @testset "xt_trsm! cpu" begin
             C = alpha*(A\B)
             dC = copy(dB)
             h_C = Array(dC)
@@ -751,7 +748,7 @@ end
             h_C = Array(dC)
             @test C ≈ h_C
         end
-        memcheck || @testset "xt_trsm cpu" begin
+        @testset "xt_trsm cpu" begin
             C  = alpha*(A\B)
             h_C = CUBLAS.xt_trsm('L','U','N','N',alpha,Array(dA),Array(dB))
             @test C ≈ h_C
@@ -897,7 +894,7 @@ end
                 h_C = Array(d_C)
                 @test C ≈ h_C
             end
-            memcheck || @testset "xt_hemm! cpu" begin
+            @testset "xt_hemm! cpu" begin
                 # compute
                 C = alpha*(hA*B) + beta*C
                 h_C = Array(d_C)
@@ -911,7 +908,7 @@ end
                 h_C = Array(d_C)
                 @test C ≈ h_C
             end
-            memcheck || @testset "xt_hemm cpu" begin
+            @testset "xt_hemm cpu" begin
                 C   = hA*B
                 h_C = CUBLAS.xt_hemm('L','U',Array(dhA), Array(d_B))
                 # move to host and compare
@@ -1007,7 +1004,7 @@ end
             d_badC = CuArray(badC)
             @test_throws DimensionMismatch CUBLAS.xt_syrkx!('U','N',alpha,d_syrkx_A,d_syrkx_B,beta,d_badC)
         end
-        memcheck || @testset "xt_syrkx! cpu" begin
+        @testset "xt_syrkx! cpu" begin
             # generate matrices
             syrkx_A = rand(elty, n, k)
             syrkx_B = rand(elty, n, k)
@@ -1030,7 +1027,7 @@ end
             h_C = Array(d_syrkx_C)
             @test triu(final_C) ≈ triu(h_C)
         end
-        memcheck || @testset "xt_syrkx cpu" begin
+        @testset "xt_syrkx cpu" begin
             # generate matrices
             syrkx_A = rand(elty, n, k)
             syrkx_B = rand(elty, n, k)
@@ -1058,7 +1055,7 @@ end
             h_C = triu(C)
             @test C ≈ h_C
         end
-        memcheck || @testset "xt_syrk cpu" begin
+        @testset "xt_syrk cpu" begin
             # C = A*transpose(A)
             h_C = CUBLAS.xt_syrk('U','N',Array(d_A))
             C = A*transpose(A)
@@ -1097,7 +1094,7 @@ end
                 h_C = triu(h_C)
                 @test C ≈ h_C
             end
-            memcheck || @testset "xt_herk! cpu" begin
+            @testset "xt_herk! cpu" begin
                 h_C = Array(dhA)
                 CUBLAS.xt_herk!('U','N',real(alpha),Array(d_A),real(beta),h_C)
                 C = real(alpha)*(A*A') + real(beta)*Array(dhA)
@@ -1115,7 +1112,7 @@ end
                 h_C = triu(h_C)
                 @test C ≈ h_C
             end
-            memcheck || @testset "xt_herk cpu" begin
+            @testset "xt_herk cpu" begin
                 h_C = CUBLAS.xt_herk('U','N',Array(d_A))
                 C = A*A'
                 C = triu(C)
@@ -1199,7 +1196,7 @@ end
                 h_C = triu(h_C)
                 @test C ≈ h_C
             end
-            memcheck || @testset "xt_her2k! cpu" begin
+            @testset "xt_her2k! cpu" begin
                 elty1 = elty
                 elty2 = real(elty)
                 # generate parameters
@@ -1225,7 +1222,7 @@ end
                 h_C = triu(h_C)
                 @test C ≈ h_C
             end
-            memcheck || @testset "xt_her2k cpu" begin
+            @testset "xt_her2k cpu" begin
                 # generate parameters
                 C = C + C'
                 C = (A*B') + (B*A')
